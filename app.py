@@ -98,13 +98,36 @@ def respond(message, chat_history):
     chat_history.append((message, answer))
     return "", chat_history
 
-with gr.Blocks(theme=gr.themes.Soft(primary_hue="indigo")) as demo:
-    gr.Markdown("## Abalone RAG QA Demo")
-    gr.Markdown("Ask anything about Abalones!")
+with gr.Blocks(
+    theme=gr.themes.Glass(),
+    css="""
+        .gr-chatbot .message.user {
+            background: #e7ebef !important;
+            color: #333 !important;
+        }
+        .gr-chatbot .message.bot {
+            background: #ffffff !important;
+            color: #000 !important;
+            border: 1px solid #dcdcdc !important;
+        }
+        #input-row { 
+            margin-top: 15px; 
+        }
+    """
+) as demo:
+    
+    gr.Markdown(
+        """
+        <h1 style='text-align:center; font-weight:700; margin-bottom:0px;'>🐚 Abalone RAG QA Demo</h1>
+        <p style='text-align:center; font-size:16px; color:#555; margin-top:0px;'>
+            Ask anything about Abalones!
+        </p>
+        """
+    )
 
     chatbot = gr.Chatbot(height=400, label="")
     
-    with gr.Row():
+    with gr.Row(elem_id="input-row"):
         msg = gr.Textbox(
             label="Ask a question...",
             placeholder="What do young abalones eat?",
