@@ -94,19 +94,27 @@ def answer_question(question):
 
 # Gradio UI
 def respond(message, chat_history):
-    answer = answer_question(message)  # your RAG function
+    answer = answer_question(message)
     chat_history.append((message, answer))
     return "", chat_history
 
-with gr.Blocks(theme=gr.themes.Monochrome()) as demo:
-    gr.Markdown("# 🐚 Abalone RAG QA Demo")
-    gr.Markdown("Ask anything about the Abalone PDF!")
+with gr.Blocks(theme=gr.themes.Soft(primary_hue="indigo")) as demo:
+    gr.Markdown("## Abalone RAG QA Demo")
+    gr.Markdown("Ask anything about Abalones!")
 
-    chatbot = gr.Chatbot(height=400)
-    msg = gr.Textbox(label="Ask a question...", placeholder="What do young abalones eat?")
+    chatbot = gr.Chatbot(height=400, label="")
+    
+    with gr.Row():
+        msg = gr.Textbox(
+            label="Ask a question...",
+            placeholder="What do young abalones eat?",
+            lines=1
+        )
+        submit_btn = gr.Button("Submit", variant="primary")
+
     clear = gr.ClearButton([chatbot, msg])
 
+    submit_btn.click(respond, [msg, chatbot], [msg, chatbot])
     msg.submit(respond, [msg, chatbot], [msg, chatbot])
 
-demo.queue()   # enables loading spinner
 demo.launch()
