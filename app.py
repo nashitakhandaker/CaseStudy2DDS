@@ -6,7 +6,7 @@ import chromadb
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 
 # Load PDF
-reader = PdfReader("/Users/nashitakhandaker/Desktop/Abalone.pdf")
+reader = PdfReader("Abalone.pdf")
 raw = "\n".join(page.extract_text() for page in reader.pages)
 
 # Split chunks
