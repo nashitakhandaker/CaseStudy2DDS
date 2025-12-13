@@ -38,6 +38,12 @@ collection.add(
     metadatas=[{"chunk": i} for i in range(len(chunks))]
 )
 
+# Semantic similarity search
+def retrieve_docs(query, k=3):
+    query_emb = embedder.encode(query, normalize_embeddings=True).tolist()
+    results = collection.query(query_embeddings=[query_emb], n_results=k)
+    return results["documents"][0]
+
 # Invoke model
 model_name = "google/flan-t5-large"
 
