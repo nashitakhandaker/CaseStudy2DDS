@@ -1,70 +1,100 @@
 import gradio as gr
-from huggingface_hub import InferenceClient
+from pypdf import PdfReader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from sentence_transformers import SentenceTransformer
+import chromadb
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 
+# Load PDF
+reader = PdfReader("/Users/nashitakhandaker/Desktop/Abalone.pdf")
+raw = "\n".join(page.extract_text() for page in reader.pages)
 
-def respond(
-    message,
-    history: list[dict[str, str]],
-    system_message,
-    max_tokens,
-    temperature,
-    top_p,
-    hf_token: gr.OAuthToken,
-):
-    """
-    For more information on `huggingface_hub` Inference API support, please check the docs: https://huggingface.co/docs/huggingface_hub/v0.22.2/en/guides/inference
-    """
-    client = InferenceClient(token=hf_token.token, model="openai/gpt-oss-20b")
-
-    messages = [{"role": "system", "content": system_message}]
-
-    messages.extend(history)
-
-    messages.append({"role": "user", "content": message})
-
-    response = ""
-
-    for message in client.chat_completion(
-        messages,
-        max_tokens=max_tokens,
-        stream=True,
-        temperature=temperature,
-        top_p=top_p,
-    ):
-        choices = message.choices
-        token = ""
-        if len(choices) and choices[0].delta.content:
-            token = choices[0].delta.content
-
-        response += token
-        yield response
-
-
-"""
-For information on how to customize the ChatInterface, peruse the gradio docs: https://www.gradio.app/docs/chatinterface
-"""
-chatbot = gr.ChatInterface(
-    respond,
-    type="messages",
-    additional_inputs=[
-        gr.Textbox(value="You are a friendly Chatbot.", label="System message"),
-        gr.Slider(minimum=1, maximum=2048, value=512, step=1, label="Max new tokens"),
-        gr.Slider(minimum=0.1, maximum=4.0, value=0.7, step=0.1, label="Temperature"),
-        gr.Slider(
-            minimum=0.1,
-            maximum=1.0,
-            value=0.95,
-            step=0.05,
-            label="Top-p (nucleus sampling)",
-        ),
-    ],
+# Split chunks
+splitter = RecursiveCharacterTextSplitter(
+    chunk_size=1200,
+    chunk_overlap=200,
+    separators=["\n\n", "\n", ".", " ", ""],
+    length_function=len
 )
 
-with gr.Blocks() as demo:
-    with gr.Sidebar():
-        gr.LoginButton()
-    chatbot.render()
+chunks = splitter.split_text(raw)
 
+# Create vector DB and embeddings
+embedder = SentenceTransformer("sentence-transformers/all-mpnet-base-v2")
+
+client = chromadb.Client()
+
+collection = client.create_collection(
+    name="abalone_db",
+    metadata={"hnsw:space": "cosine"}
+)
+
+embeddings = embedder.encode(chunks, normalize_embeddings=True)
+
+collection.add(
+    documents=chunks,
+    embeddings=embeddings.tolist(),
+    ids=[f"id_{i}" for i in range(len(chunks))],
+    metadatas=[{"chunk": i} for i in range(len(chunks))]
+)
+
+# Invoke model
+model_name = "google/flan-t5-large"
+
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+
+def llm(prompt):
+    inputs = tokenizer(prompt, return_tensors="pt")
+    outputs = model.generate(**inputs, max_new_tokens=800)
+    return tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+# RAG Inference
+def answer_question(question):
+    # Retrieve chunks
+    docs = retrieve_docs(question, k=3)
+    context = "\n".join(docs)
+
+    # Build prompt
+    prompt = f"""
+    Below are examples of warm, friendly explanations. Follow their style.
+
+    Example 1:
+    Q: What is abalone?
+    A: Abalones are gentle sea creatures—beautiful marine snails with colorful shells. They live in cool ocean waters and play an important role in their ecosystems.
+
+    Example 2:
+    Q: Where do abalones live?
+    A: Abalones can be found in ocean waters around the world, especially in cooler coastal areas. They're attached to rocks and enjoy peaceful, quiet habitats.
+
+    Other Rules:
+    - If the answer is not in the context, respond with: "I'm not seeing that information in the context provided."
+    - NEVER guess.
+    - NEVER add new facts.
+    - NEVER rely on outside knowledge.
+    - ONLY use the context, nothing else.
+    Now answer the new question in the same friendly, warm, descriptive tone.
+
+    Context:
+    {context}
+
+    Question:
+    {question}
+
+    Answer:
+    """
+
+    return llm(prompt)
+
+# Gradio UI
+iface = gr.Interface(
+    fn=answer_question,
+    inputs=gr.Textbox(lines=2, label="Ask a question about Abalones!"),
+    outputs=gr.Textbox(label="Answer"),
+    title="Abalone RAG QA Demo"
+)
 
 if __name__ == "__main__":
-    demo.launch()
+    iface.launch()
+    
+    # add a 'generating response...' to the UI
