@@ -93,14 +93,20 @@ def answer_question(question):
     return llm(prompt)
 
 # Gradio UI
-iface = gr.Interface(
-    fn=answer_question,
-    inputs=gr.Textbox(lines=2, label="Ask a question about Abalones!"),
-    outputs=gr.Textbox(label="Answer"),
-    title="Abalone RAG QA Demo"
-)
+def respond(message, chat_history):
+    answer = answer_question(message)  # your RAG function
+    chat_history.append((message, answer))
+    return "", chat_history
 
-if __name__ == "__main__":
-    iface.launch()
-    
-    # add a 'generating response...' to the UI
+with gr.Blocks(theme=gr.themes.Monochrome()) as demo:
+    gr.Markdown("# 🐚 Abalone RAG QA Demo")
+    gr.Markdown("Ask anything about the Abalone PDF!")
+
+    chatbot = gr.Chatbot(height=400)
+    msg = gr.Textbox(label="Ask a question...", placeholder="What do young abalones eat?")
+    clear = gr.ClearButton([chatbot, msg])
+
+    msg.submit(respond, [msg, chatbot], [msg, chatbot])
+
+demo.queue()   # enables loading spinner
+demo.launch()
