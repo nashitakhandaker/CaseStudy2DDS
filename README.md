@@ -1,5 +1,3 @@
-# Case Study 2
-
 ---
 title: Abalone Q&A
 sdk: gradio
