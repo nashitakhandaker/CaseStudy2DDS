@@ -5,7 +5,9 @@ app_file: app.py
 description: RAG application to ask about abalones
 ---
 An example chatbot using [Gradio](https://gradio.app), [`huggingface_hub`](https://huggingface.co/docs/huggingface_hub/v0.22.2/en/index), and the [Hugging Face Inference API](https://huggingface.co/docs/api-inference/index).
-Visit at: https://huggingface.co/spaces/nshiak/DDSProject2
+
+# ** Chatbot ** 
+Visit at: [Q&A App)](https://huggingface.co/spaces/nshiak/DDSProject2)
 
 # **Abalone Final Project (PDF)**  
 [Download the report](abalone_project.pdf)
